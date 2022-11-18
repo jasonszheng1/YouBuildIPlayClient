@@ -1,14 +1,5 @@
-import {intMath, fraction} from "./game/intmath"
-
+import {intMath, fraction} from "./libs/intmath"
 let ctx = canvas.getContext('2d')
-let udp = wx.createUDPSocket()
-let port = udp.bind()
-udp.send({
-  address:'127.0.0.1',
-  port:30000,
-  message:'hello nihaoasfaaaa'
-})
-
 
 wx.onSocketOpen((result) => {
   console.log('onSocketOpen', result)
@@ -21,6 +12,7 @@ wx.onSocketClose((result) => {
 wx.onSocketError((result) => { 
   console.log('onSocketError', result)
 })
+
 /**
  * 游戏主函数 
  */
