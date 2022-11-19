@@ -34,7 +34,8 @@ export default class Main {
 
     let img     = new Image()
     img.src = 'images/bullet.png'
-    ctx.drawImage(img, 10, 10, 100, 100)
+    console.log(img.width << 0, img.height)
+    ctx.drawImage(img, 10.1, 10, 100, 100)
     
     this.aniId = window.requestAnimationFrame(
       this.bindTick,

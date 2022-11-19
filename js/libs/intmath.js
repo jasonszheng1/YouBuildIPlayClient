@@ -1,3 +1,4 @@
+// fs means frame sync
 
 // 只涉及到整数运算的数学库
 class FSIntMath 
@@ -139,7 +140,7 @@ class FSIntMath
 let intMath = new FSIntMath()
 export {intMath as FSIntMath}
 
-// 分数类 为了简化运算 固定分母为1000
+// 分数类 替换float运算 为了简化运算 固定分母为1000
 class FSFraction {
   constructor(numerator) {
     this.n = numerator
@@ -150,6 +151,7 @@ class FSFraction {
   sub(value) { return new FSFraction(this.n - value.n) }
   mul(value) { return new FSFraction(intMath.divide(this.n * value.n, this.d)) }
   div(value) { return new FSFraction(intMath.divide(this.n * this.d, value.n)) }
+  neg() { return new FSFraction(-this.n) }
 
   sqrt() { return new FSFraction(intMath.sqrt(this.n * 10) * 10) }
   tofloat() { return this.n / this.d }
@@ -162,8 +164,8 @@ class FSFraction {
 }
 export {FSFraction}
 
-// vector2
-class FSVector2 
+// vector
+class FSVector 
 {
   constructor(x, y) 
   {
@@ -189,8 +191,73 @@ class FSVector2
     return new FSVector2(this.x.mul(cos).sub(this.y.mul(sin)), this.x.mul(sin).add(this.y.mul(cos))) 
   }
   tofloat() { return [this.x.tofloat(), this.y.tofloat()] }
+
+  equal(v) { return this.x.equal(v.x) && this.y.equal(v.y)}
 }
-export {FSVector2}
+export {FSVector}
+
+// 2d transform 3x3 matix
+class FSTransform {
+  constructor(position, scale, rotation)
+  {
+    // translate matrix
+    let row0 = [ new FSFraction(1000), new FSFraction(0), new FSFraction(0) ]
+    let row1 = [ new FSFraction(0), new FSFraction(1000), new FSFraction(0) ]
+    let row2 = [ position.x, position.y, new FSFraction(1000) ]
+    let translateMatrix = [ row0, row1, row2 ]
+
+    // scale matrix
+    row0 = [ scale.x, new FSFraction(0), new FSFraction(0) ]
+    row1 = [ new FSFraction(0), scale.y, new FSFraction(0) ]
+    row2 = [ new FSFraction(0), new FSFraction(0), new FSFraction(1000) ]
+    let scaleMatrix = [ row0, row1, row2 ]
+
+    // rotate matrix
+    let cos = intMath.cos(rotation)
+    let sin = intMath.sin(rotation)
+    row0 = [ cos, sin, new FSFraction(0) ]
+    row1 = [ sin.neg(), cos, new FSFraction(0) ]
+    row2 = [ new FSFraction(0), new FSFraction(0), new FSFraction(1000) ]
+    let rotateMatrix = [ row0, row1, row2 ]
+
+    this.matrix = this.mulMatrix(this.mulMatrix(rotateMatrix, scaleMatrix), translateMatrix)
+  }
+
+  mulMatrix(m1, m2)
+  {
+    let row00 = m1[0][0].mul(m2[0][0]).add(m1[0][1].mul(m2[1][0])).add(m1[0][2].mul(m2[2][0]))
+    let row01 = m1[0][0].mul(m2[0][1]).add(m1[0][1].mul(m2[1][1])).add(m1[0][2].mul(m2[2][1]))
+    let row02 = m1[0][0].mul(m2[0][2]).add(m1[0][1].mul(m2[1][2])).add(m1[0][2].mul(m2[2][2]))
+
+    let row10 = m1[1][0].mul(m2[0][0]).add(m1[1][1].mul(m2[1][0])).add(m1[1][2].mul(m2[2][0]))
+    let row11 = m1[1][0].mul(m2[0][1]).add(m1[1][1].mul(m2[1][1])).add(m1[1][2].mul(m2[2][1]))
+    let row12 = m1[1][0].mul(m2[0][2]).add(m1[1][1].mul(m2[1][2])).add(m1[1][2].mul(m2[2][2]))
+
+    let row20 = m1[2][0].mul(m2[0][0]).add(m1[2][1].mul(m2[1][0])).add(m1[2][2].mul(m2[2][0]))
+    let row21 = m1[2][0].mul(m2[0][1]).add(m1[2][1].mul(m2[1][1])).add(m1[2][2].mul(m2[2][1]))
+    let row22 = m1[2][0].mul(m2[0][2]).add(m1[2][1].mul(m2[1][2])).add(m1[2][2].mul(m2[2][2]))
+
+    return [[row00, row01, row02], [row10, row11, row12], [row20, row21, row22]]
+  }
+
+  mul(transform) {
+     let newTransform = new FSTransform
+     newTransform.matrix = this.mulMatrix(this.matrix, transform.matrix)
+     return newTransform
+  }
+
+  invert() {
+
+  }
+
+  translatePosition(position) {
+    let m1 = [position.x, position.y, new FSFraction(1000)]
+    let m2 = this.matrix
+    let x = m2[0][0].mul(m1[0]).add(m2[0][1].mul(m1[1])).add(m2[0][2].mul(m1[2]))
+    let y = m2[1][0].mul(m1[0]).add(m2[1][1].mul(m1[1])).add(m2[1][2].mul(m1[2]))
+    return new FSVector(x, y)
+  }
+}
 
 // rect whit minPoint and maxPoint
 class FSRect {
@@ -206,4 +273,28 @@ class FSRect {
     this.max.x = intMath.max(this.max.x, r.max.x)
     this.max.y = intMath.max(this.max.y, r.max.y)
   }
+
+  intersectRect(rect)
+  {
+    if (this.min.x.greater(rect.max.x) || rect.min.x.greater(this.max.x))
+      return false
+    if (this.min.y.greater(rect.max.y) || rect.min.y.greater(this.max.y))
+      return false
+    return true
+  }
+
+  intersectLine(line)
+  {
+
+  }
+
+  containPoint(point)
+  {
+    if (point.x.less(this.min.x) || point.x.greater(this.max.x))
+      return false
+    if (point.y.less(this.min.y) || point.y.greater(this.max.y))
+      return false
+    return true
+  }
 }
+export {FSRect}
